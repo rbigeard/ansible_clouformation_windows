@@ -1,0 +1,38 @@
+---
+- hosts: localhost
+  vars:
+    - aws_region: "ap-southeast-2"
+  tasks:
+    - name:  launch Windows Ansible Test cloudformation stack
+      cloudformation:
+        stack_name: "AnsibleWindowsTest1"
+        region: "{{ aws_region }}"
+        state: "present"
+        template: "windows_template.yml"
+    - ec2_remote_facts:
+        filters:
+          instance-state-name: running
+          "tag:Name": WindowsAnsibleTest
+        region: "{{ aws_region }}"
+      register: instance_details
+    - name: getting windows password
+      ec2_win_password:
+        instance_id: "{{ instance_details.instances[0].id }}"
+        key_file: "{{ windows_aws_key_file }}"
+        wait: yes
+        region: "{{ aws_region }}"
+      register: win_password_output
+    - name: adding host to inventory
+      add_host:
+        name: windows_test_host
+        ansible_host: "{{ instance_details.instances[0].public_dns_name }}"
+        ansible_password: "{{ win_password_output.win_password }}"
+        groups: ec2_windows
+        ansible_winrm_server_cert_validation: ignore
+        ansible_connection: 'winrm'
+        ansible_user: Administrator
+        ansible_port: 5986
+
+- hosts: windows_test_host
+  roles:
+    - webserver

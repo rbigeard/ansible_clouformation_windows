@@ -1,0 +1,2 @@
+# Insert the patch to your Windows AWS key file
+windows_aws_key_file: "MyWindowsKey.pem"

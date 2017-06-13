@@ -1,0 +1,214 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This template creates a single server installation of Microsoft
+  Windows Server 2012r2 ready for Ansible.
+   **WARNING** This template creates Amazon EC2 Windows instance
+  and related resources. You will be billed for the AWS resources used if you
+  create a stack from this template. Also, you are solely responsible for
+  complying with the license terms for the software downloaded and installed by
+  this template. By creating a stack from this template, you are agreeing to
+  such terms.
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+    Default: MyWindowsKey
+  InstanceType:
+    Description: Amazon EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t1.micro
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - m1.small
+      - m1.medium
+      - m1.large
+      - m1.xlarge
+      - m2.xlarge
+      - m2.2xlarge
+      - m2.4xlarge
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c1.medium
+      - c1.xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - g2.2xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+      - d2.xlarge
+      - d2.2xlarge
+      - d2.4xlarge
+      - d2.8xlarge
+      - hi1.4xlarge
+      - hs1.8xlarge
+      - cr1.8xlarge
+      - cc2.8xlarge
+      - cg1.4xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+  SourceCidrForRDP:
+    Description: >-
+      IP Cidr from which you are likely to RDP into the instances. You can add
+      rules later by modifying the created security groups e.g. 54.32.98.160/32
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: '^([0-9]+\.){3}[0-9]+\/[0-9]+$'
+    Default: 0.0.0.0/0
+  SourceCidrForWinRM:
+    Description: >-
+      IP Cidr from which you are likely to RDP into the instances. You can add
+      rules later by modifying the created security groups e.g. 54.32.98.160/32
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    AllowedPattern: '^([0-9]+\.){3}[0-9]+\/[0-9]+$'
+    Default: 0.0.0.0/0
+Mappings:
+  AWSRegion2AMI:
+    us-east-1:
+      Windows2008r2: ami-98a9378e
+      Windows2012r2: ami-e659c7f0
+    us-west-2:
+      Windows2008r2: ami-06d34c66
+      Windows2012r2: ami-2ad04f4a
+    us-west-1:
+      Windows2008r2: ami-c8f1d5a8
+      Windows2012r2: ami-ccf2d6ac
+    eu-west-1:
+      Windows2008r2: ami-22a0a644
+      Windows2012r2: ami-58a1a73e
+    eu-west-2:
+      Windows2008r2: ami-13faee77
+      Windows2012r2: ami-22feea46
+    eu-central-1:
+      Windows2008r2: ami-ce6cb1a1
+      Windows2012r2: ami-8f6fb2e0
+    ap-northeast-1:
+      Windows2008r2: ami-95f7dff2
+      Windows2012r2: ami-51c8e036
+    ap-northeast-2:
+      Windows2008r2: ami-6c528002
+      Windows2012r2: ami-06528068
+    ap-southeast-1:
+      Windows2008r2: ami-7d41f91e
+      Windows2012r2: ami-a843fbcb
+    ap-southeast-2:
+      Windows2008r2: ami-b6525ad5
+      Windows2012r2: ami-72525a11
+    ap-south-1:
+      Windows2008r2: ami-da0e7cb5
+      Windows2012r2: ami-3d0e7c52
+    us-east-2:
+      Windows2008r2: ami-964760f3
+      Windows2012r2: ami-b5785fd0
+    ca-central-1:
+      Windows2008r2: ami-1dbd0179
+      Windows2012r2: ami-53c37f37
+    sa-east-1:
+      Windows2008r2: ami-fd533e91
+      Windows2012r2: ami-64afc208
+    cn-north-1:
+      Windows2008r2: ami-3c1bcd51
+      Windows2012r2: ami-e71acc8a
+Resources:
+  AnsibleSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP and RDP
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '3389'
+          ToPort: '3389'
+          CidrIp: !Ref SourceCidrForWinRM
+        - IpProtocol: tcp
+          FromPort: '5986'
+          ToPort: '5986'
+          CidrIp: !Ref SourceCidrForWinRM
+  AnsibleFoundation:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            1-extract:
+              command: >-
+                powershell.exe -Command Set-ExecutionPolicy -Force remotesigned
+            2-prereq:
+              command: >-
+                powershell.exe -Command Invoke-WebRequest
+                https://raw.githubusercontent.com/ansible/ansible/devel/examples/scripts/ConfigureRemotingForAnsible.ps1
+                -OutFile ConfigureRemotingForAnsible.ps1
+            3-install:
+              command: >-
+                powershell.exe -File ConfigureRemotingForAnsible.ps1
+#          services:
+    Properties:
+      InstanceType: !Ref InstanceType
+      ImageId: !FindInMap
+        - AWSRegion2AMI
+        - !Ref 'AWS::Region'
+        - Windows2012r2
+      SecurityGroups:
+        - !Ref AnsibleSecurityGroup
+      KeyName: !Ref KeyName
+      Tags:
+        -
+          Key: Name
+          Value: WindowsAnsibleTest
+      UserData: !Base64
+        'Fn::Join':
+          - ''
+          - - |
+              <script>
+            - 'cfn-init.exe -v -s '
+            - !Ref 'AWS::StackId'
+            - ' -r AnsibleFoundation'
+            - ' --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - 'cfn-signal.exe -e %ERRORLEVEL% '
+            - !Base64
+              Ref: AnsibleFoundationWaitHandle
+            - |+
+
+             - </script>
+  AnsibleFoundationWaitHandle:
+    Type: 'AWS::CloudFormation::WaitConditionHandle'
+  AnsibleFoundationWaitCondition:
+    Type: 'AWS::CloudFormation::WaitCondition'
+    DependsOn: AnsibleFoundation
+    Properties:
+      Handle: !Ref AnsibleFoundationWaitHandle
+      Timeout: '3600'
+#Outputs:
