@@ -6,4 +6,6 @@ Once the stack is created, Ansible performs some configuration on the newly crea
 
 It leverages the ec2_win_password module which retrieves Windows passwords based on your Windows key file.
 
-The windows_aws_key_file  variable in group_vars/all.yml must point to your AWS Windows key file.
+The windows_aws_key_file  variable in group_vars/all.yml must point to your AWS Windows key file or is can be stipulated at run time as follows:
+
+``` ansible-playbook -e "windows_aws_key_file=~/Documents/MyWindowsKey.pem -i ec2.py provision.yml ```
